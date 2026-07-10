@@ -35,7 +35,7 @@ ORDER BY avg_precip_mm DESC;
 SELECT c.name, COUNT(*) AS extreme_heat_days
 FROM weather_records w
 JOIN cities c ON w.city_id = c.city_id
-WHERE w.temp_max_c > 35
+WHERE w.temp_max_f > 105
 GROUP BY c.name
 ORDER BY extreme_heat_days DESC;
 
