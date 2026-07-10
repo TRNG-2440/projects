@@ -1,19 +1,16 @@
 import json
 from pathlib import Path
-
 import requests
 
 API_BASE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
-# TODO: fill in 3+ cities you researched.
 CITIES = [
-    # {"name": "New York", "latitude": 40.7128, "longitude": -74.0060},
-    # {"name": "Chicago", "latitude": 41.8781, "longitude": -87.6298},
-    # {"name": "Phoenix", "latitude": 33.4484, "longitude": -112.0740},
+    {"name": "Los Angeles", "latitude": 34.0522, "longitude": -118.2437},
+    {"name": "San Francisco", "latitude": 37.7749, "longitude": -122.4194},
+    {"name": "San Diego", "latitude": 32.7157, "longitude": -117.1611},
+    {"name": "Phoenix", "latitude": 33.4484, "longitude": -112.0740},
 ]
 
-# TODO: pick a date range. A full year gives enough data for monthly/seasonal
-# questions (e.g. "hottest month").
 START_DATE = "2024-01-01"
 END_DATE = "2024-12-31"
 
@@ -28,7 +25,7 @@ RAW_DATA_DIR = Path(__file__).resolve().parent / "data" / "raw"
 
 
 def fetch_city_weather(city: dict, start_date: str, end_date: str) -> dict:
-    """Call the Open-Meteo archive API for a single city and return parsed JSON."""
+    
     params = {
         "latitude": city["latitude"],
         "longitude": city["longitude"],
@@ -38,14 +35,15 @@ def fetch_city_weather(city: dict, start_date: str, end_date: str) -> dict:
         "timezone": "auto",
     }
 
-    # TODO: make the GET request with `requests.get(API_BASE_URL, params=params)`,
-    # check response.status_code (raise or print clearly on failure — don't
-    # silently continue), then return response.json().
-    raise NotImplementedError
+    response = requests.get(API_BASE_URL, params=params)
+
+    if response.status_code != 200:
+        raise SystemExit(f"Request failed for {city['name']}: {response.status_code}")
+
+    return response.json()
 
 
 def save_raw_response(city_name: str, start_date: str, end_date: str, payload: dict) -> Path:
-    """Write the untouched API response to data/raw/<city>_<start>_<end>.json."""
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     safe_name = city_name.lower().replace(" ", "_")
     out_path = RAW_DATA_DIR / f"{safe_name}_{start_date}_{end_date}.json"

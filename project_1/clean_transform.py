@@ -2,12 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 
-# Reuse the loader from profile_data.py rather than duplicating it.
 from profile_data import load_raw_files
 
 OUTPUT_PATH = Path(__file__).resolve().parent / "data" / "processed_weather.csv"
 
-# Rename API's verbose field names to clean schema-friendly names.
 COLUMN_RENAME = {
     "time": "date",
     "temperature_2m_max": "temp_max_c",
@@ -20,19 +18,17 @@ COLUMN_RENAME = {
 def clean(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns=COLUMN_RENAME)
 
-    # TODO: cast types explicitly, don't assume pandas got it right:
-    #   df["date"] = pd.to_datetime(df["date"])
-    #   numeric columns -> pd.to_numeric(df[col], errors="coerce")
+    df["date"] = pd.to_datetime(df["date"])
 
-    # TODO: handle nulls based on what profiling found. Options include
-    # dropping the row, or a documented imputation (e.g. interpolate). Note
-    # your choice in your summary doc.
+    df["temp_max_c"] = pd.to_numeric(df["temp_max_c"], errors="coerce")
+    df["temp_min_c"] = pd.to_numeric(df["temp_min_c"], errors="coerce")
+    df["precipitation_mm"] = pd.to_numeric(df["precipitation_mm"], errors="coerce")
+    df["windspeed_max_kmh"] = pd.to_numeric(df["windspeed_max_kmh"], errors="coerce")
 
-    # TODO: drop exact duplicate (city, date) rows:
-    #   df = df.drop_duplicates(subset=["city", "date"])
+    df["temp_max_f"] = (df["temp_max_c"] * 9 / 5) + 32
+    df["temp_min_f"] = (df["temp_min_c"] * 9 / 5) + 32
 
-    # TODO: drop/flag any rows that failed the range checks from profiling,
-    # if you decided those are bad data rather than legitimate extremes.
+    df = df.drop_duplicates(subset=["city", "date"])
 
     return df
 

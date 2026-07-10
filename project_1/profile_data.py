@@ -7,27 +7,32 @@ RAW_DATA_DIR = Path(__file__).resolve().parent / "data" / "raw"
 
 
 def load_raw_files() -> pd.DataFrame:
-    """Read every JSON file in data/raw/, flatten the `daily` parallel-array
-    block into one row per (city, date), and concatenate into one DataFrame.
+    all_dataframes = []
 
-    Remember: payload["daily"] looks like
-        {"time": [...], "temperature_2m_max": [...], ...}
-    i.e. parallel lists indexed together — not a list of row-dicts. You'll
-    likely build this with pd.DataFrame(payload["daily"]) per city, then add
-    a "city" column, then pd.concat() across cities.
-    """
-    frames = []
+    json_files = list(RAW_DATA_DIR.glob("*.json"))
 
-    # TODO: iterate over RAW_DATA_DIR.glob("*.json"), json.load each file,
-    # derive the city name from the filename or payload, build a per-city
-    # DataFrame from payload["daily"], tag it with a "city" column (and,
-    # if you want it available later, "latitude"/"longitude" columns too),
-    # and append to `frames`.
+    for file_path in json_files:
+        file = open(file_path)
+        payload = json.load(file)
+        file.close()
 
-    if not frames:
-        raise SystemExit("No raw files found/parsed. Run ingest.py first.")
+        filename_without_extension = file_path.stem
+        parts = filename_without_extension.split("_")
+        city_parts = parts[:-2]
+        city_name = " ".join(city_parts).title()
 
-    return pd.concat(frames, ignore_index=True)
+        df = pd.DataFrame(payload["daily"])
+        df["city"] = city_name
+        df["latitude"] = payload["latitude"]
+        df["longitude"] = payload["longitude"]
+
+        all_dataframes.append(df)
+
+    if len(all_dataframes) == 0:
+        raise SystemExit("No raw files found. Run ingest.py first.")
+
+    combined_df = pd.concat(all_dataframes, ignore_index=True)
+    return combined_df
 
 
 def profile(df: pd.DataFrame) -> None:
@@ -41,18 +46,29 @@ def profile(df: pd.DataFrame) -> None:
     print(df.isnull().sum())
 
     print("\n=== Duplicate (city, time) rows ===")
-    # TODO: check df.duplicated(subset=["city", "time"]).sum() (adjust the
-    # date column name to whatever it's called after flattening)
+    duplicate_count = df.duplicated(subset=["city", "time"]).sum()
+    print(duplicate_count)
 
     print("\n=== Value ranges (numeric columns) ===")
     print(df.describe())
 
-    # TODO: add explicit sanity checks and print anything suspicious, e.g.:
-    #   - temperature_2m_max < -90 or > 60
-    #   - precipitation_sum < 0
-    #   - windspeed_10m_max < 0
-    # Print the actual offending rows (city + date) so you have concrete
-    # examples for your summary doc, not just counts.
+    print("\n=== Range sanity checks ===")
+
+    bad_temp_max = df[(df["temperature_2m_max"] < -90) | (df["temperature_2m_max"] > 60)]
+    print(f"Out-of-range temp_max rows: {len(bad_temp_max)}")
+    print(bad_temp_max[["city", "time", "temperature_2m_max"]])
+
+    bad_temp_min = df[(df["temperature_2m_min"] < -90) | (df["temperature_2m_min"] > 60)]
+    print(f"Out-of-range temp_min rows: {len(bad_temp_min)}")
+    print(bad_temp_min[["city", "time", "temperature_2m_min"]])
+
+    bad_precip = df[df["precipitation_sum"] < 0]
+    print(f"Negative precipitation rows: {len(bad_precip)}")
+    print(bad_precip[["city", "time", "precipitation_sum"]])
+
+    bad_wind = df[df["windspeed_10m_max"] < 0]
+    print(f"Negative wind speed rows: {len(bad_wind)}")
+    print(bad_wind[["city", "time", "windspeed_10m_max"]])
 
 
 def main():
